@@ -1,4 +1,4 @@
-from transformers import pipeline
+#from transformers import pipeline
 import os
 import torch
 import numpy as np
