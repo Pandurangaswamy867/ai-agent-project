@@ -7,18 +7,17 @@ pydantic[email]==2.9.2
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
-torch==2.5.1  # CPU version for Render
-transformers==4.46.3
+# CPU PyTorch for Render (no GPU needed)
+torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
 pillow==11.1.0
 sentencepiece==0.2.0
 protobuf==5.30.5
-
 pytest==8.3.3
 pypdfium2==2.5.2
 sentence-transformers==3.1.1
 librosa==0.11.1
 soundfile==0.12.1
 google-generativeai==0.8.3
-
-alembic==1.16.2  # DB migrations
-python-multipart==0.0.9  # File uploads
+python-multipart==0.0.9
+alembic==1.16.2
