@@ -15,3 +15,5 @@ uvicorn
 google-generativeai
 sqlalchemy
 pydantic[email]
+python-jose
+
