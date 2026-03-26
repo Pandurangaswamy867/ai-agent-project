@@ -1,23 +1,7 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-sqlalchemy==2.0.35
-psycopg2-binary==2.9.9
-python-dotenv==1.0.1
-pydantic[email]==2.9.2
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-
-# CPU PyTorch for Render (no GPU needed)
-torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-pillow==11.1.0
-sentencepiece==0.2.0
-protobuf==5.30.5
-pytest==8.3.3
-pypdfium2==2.5.2
-sentence-transformers==3.1.1
-librosa==0.11.1
-soundfile==0.12.1
-google-generativeai==0.8.3
-python-multipart==0.0.9
-alembic==1.16.2
+fastapi
+uvicorn[standard] 
+sqlalchemy
+psycopg2-binary
+google-generativeai
+pydantic[email]
+python-multipart
