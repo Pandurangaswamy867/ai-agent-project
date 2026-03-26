@@ -1,0 +1,203 @@
+
+ 1A. Fix get_snp_performance (line 93-111)
+
+ Replace 3 hardcoded values with real computations:
+ - growth_rate: Compare current 7-day transaction volume vs previous 7-day window. Return "+X.X%" or "-X.X%".
+ - fulfillment_index: (completed_or_verified_txs / total_txs * 100) with fallback to snp.fulfillment_reliability * 100.
+ - settlement_velocity: Average (updated_at - transaction_date) for verified transactions, formatted as "T+Xh" or "T+X Days",
+ fallback to snp.settlement_speed mapping.
+
+ Add new fields to the response:
+ - capacity, current_load, capacity_pct (from SNP model)
+ - rating, type, commission_rate, supported_sectors (from SNP model)
+ - avg_feedback, feedback_count (computed from Partnership.feedback_rating)
+
+ 1B. Fix get_performance_metrics (line 86)
+
+ Replace hardcoded "1.2 days" settlement_delay with real computation from verified transaction timestamps.
+
+ 1C. New endpoint: GET /mse-activity/{mse_id}
+
+ - Roles: mse, nsic, admin (with ownership check)
+ - Returns MSE-scoped activity feed: recent transactions, partnership events, notifications
+ - Sorted by timestamp, limited to 8 items
+ - Solves: MSE users currently see an empty activity panel (existing /recent-activity is admin-only)
+
+ 1D. New endpoint: GET /mse-compliance/{mse_id}
+
+ - Roles: mse, nsic, admin (with ownership check)
+ - Returns data-driven compliance status: registration status (from MSE.status), document verification (from OCRDocument), subsidy
+ claim status (from Claim)
+ - Solves: Compliance card is currently hardcoded with static checkmarks
+
+ 1E. New endpoint: GET /snp-trend/{snp_id}
+
+ - Roles: snp (with ownership check)
+ - Returns 7-day transaction trend (date, volume, count) — mirrors existing MSE sales_trend endpoint
+
+ ---
+ Phase 2: Frontend Types
+
+ File: frontend/src/types.ts
+
+ Add new types:
+ - MSEPerformanceData — { revenue, orders, avg_value, settlement_delay }
+ - SalesTrendPoint — { date, sales, orders }
+ - MSEActivityItem — { type, title, content, timestamp }
+ - MSEComplianceData — { registration, documents, subsidy, product_verification } (each with status/label)
+
+ Update SNPPerformanceData to include new fields: capacity, current_load, capacity_pct, rating, type, commission_rate,
+ supported_sectors, avg_feedback, feedback_count.
+
+ ---
+ Phase 3: MSE Dashboard Enrichment
+
+ File: frontend/src/features/dashboard/HomeDashboard.tsx
+
+ 3A. New API calls in fetchData
+
+ Add to the existing Promise.all:
+ - GET /analytics/{mse_id}/sales_trend → salesTrend
+ - GET /analytics/{mse_id}/performance → performance
+ - GET /analytics/mse-compliance/{mse_id} → compliance
+ - GET /analytics/mse-activity/{mse_id} → mseActivities
+
+ Remove the admin-only GET /analytics/recent-activity call (useless for MSE).
+
+ 3B. Stat cards overhaul
+
+ ┌──────────────────────────────────┬──────────────────────────────────────┬─────────────────────┐
+ │             Current              │                 New                  │    Value Source     │
+ ├──────────────────────────────────┼──────────────────────────────────────┼─────────────────────┤
+ │ "Network Partners" + SNP count   │ "Active Partners" + pending subtitle │ Partnership count   │
+ ├──────────────────────────────────┼──────────────────────────────────────┼─────────────────────┤
+ │ "Total SKUs"                     │ "Products Listed"                    │ Product count       │
+ ├──────────────────────────────────┼──────────────────────────────────────┼─────────────────────┤
+ │ "Total Settlements" + tx count   │ "Total Revenue" + "from X orders"    │ performance.revenue │
+ ├──────────────────────────────────┼──────────────────────────────────────┼─────────────────────┤
+ │ "Trust Score" (100% when no txs) │ "Trust Score" ("--" when no txs)     │ Fixed calculation   │
+ └──────────────────────────────────┴──────────────────────────────────────┴─────────────────────┘
+
+ 3C. Add 7-day sales trend chart (CSS-only)
+
+ - Bar chart using salesTrend data, 7 bars for each day
+ - Navy bars (#1E3A8A), hover reveals amount
+ - Summary row: total orders + total revenue
+ - Download CSV button (axios blob download, not direct link since it needs auth)
+
+ 3D. Add performance summary row
+
+ 3 compact cards: Avg Order Value, Total Orders, Avg Settlement Time (from performance data)
+
+ 3E. Replace hardcoded compliance card
+
+ Query compliance API → render each item with dynamic status indicators (verified/pending/rejected/not_started)
+
+ 3F. Replace empty activity sidebar
+
+ Use mseActivities data with color-coded dots per type (transaction=green, partnership=blue, notification=amber)
+
+ 3G. Replace static expansion banner
+
+ Use dynamic text from insights (type=expansion) or contextual text from activeMse.sector/activeMse.state
+
+ 3H. Terminology cleanup
+
+ ┌─────────────────────────────┬─────────────────────────────┐
+ │             Old             │             New             │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "Total SKUs"                │ "Products Listed"           │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "Total Settlements"         │ "Total Revenue"             │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "Network Partners"          │ "Active Partners"           │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "AI Strategic Insights"     │ "Smart Recommendations"     │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "Pending Handshakes"        │ "Pending Requests"          │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "integrate with your node"  │ "waiting for your approval" │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "Sent Integration Requests" │ "Outgoing Requests"         │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "Settlement Node"           │ Remove                      │
+ ├─────────────────────────────┼─────────────────────────────┤
+ │ "Expansion Opportunity"     │ "Growth Opportunity"        │
+ └─────────────────────────────┴─────────────────────────────┘
+
+ ---
+ Phase 4: SNP Dashboard Enrichment
+
+ File: frontend/src/features/snp/SNPDashboard.tsx
+
+ 4A. Redesign header
+
+ - Add avatar (first letter of name in navy circle)
+ - Show SNP type badge (Logistics/Seller App/Payments)
+ - Show rating (X.X / 5.0) with amber badge
+ - Show city with MapPin icon
+
+ 4B. Stats grid overhaul (4 → 5 cards)
+
+ - Cards now use real data from fixed backend
+ - Add 5th card: Capacity — progress bar showing current_load / capacity with color coding (green < 70%, amber < 90%, red >= 90%),
+ slots available count
+
+ 4C. Add 7-day transaction trend chart
+
+ Same CSS bar chart pattern as MSE, using teal color (#0D9488)
+
+ 4D. Add commission & coverage section
+
+ - Estimated Commission Earnings: total_volume * commission_rate / 100
+ - Coverage Areas: Display pincode_expertise as pills
+
+ 4E. Replace alert() with proper proof modal
+
+ Partnership certificate modal showing: enterprise name, connected since date, match score, approved by, MSE feedback rating & text
+ (if available)
+
+ 4F. Add feedback column to partners table
+
+ Star-based visual rating display + numeric score for partnerships that have feedback
+
+ 4G. Display supported sectors as pills
+
+ Show snpData.supported_sectors parsed from JSON below the header
+
+ ---
+ Files Modified
+
+ ┌───────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────┐
+ │                       File                        │                                  Changes                                  │
+ ├───────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+ │ backend/routers/analytics.py                      │ Fix 3 mock values, fix settlement_delay, add 3 new endpoints              │
+ ├───────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+ │ frontend/src/types.ts                             │ Add 4 new types, expand SNPPerformanceData                                │
+ ├───────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+ │ frontend/src/features/dashboard/HomeDashboard.tsx │ Sales trend chart, performance row, dynamic compliance, MSE activity      │
+ │                                                   │ feed, jargon cleanup, trust score fix                                     │
+ ├───────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┤
+ │ frontend/src/features/snp/SNPDashboard.tsx        │ Header redesign, capacity card, trend chart, commission section, proof    │
+ │                                                   │ modal, feedback column, sectors display                                   │
+ └───────────────────────────────────────────────────┴───────────────────────────────────────────────────────────────────────────┘
+
+ ---
+ Verification
+
+ 1. Delete team.db to force fresh seeding
+ 2. Start backend: uvicorn backend.main:app --reload
+ 3. Start frontend: cd frontend && npm run dev
+ 4. MSE Dashboard — Login as demo@mse.gov.in / MSEWelcome2026:
+   - Stat cards show "Active Partners", "Products Listed", "Total Revenue", "Trust Score"
+   - Sales trend chart renders (may be empty bars if no transactions)
+   - Activity feed shows recent events (not empty)
+   - Compliance card shows real statuses from claims/documents
+   - No technical jargon visible
+ 5. SNP Dashboard — Login as an SNP user:
+   - Header shows type badge, rating, city
+   - 5 stat cards including capacity progress bar
+   - Performance metrics are real (not hardcoded "98.2%")
+   - "View Proof" opens a modal (not browser alert)
+   - Commission earnings calculated from real data
+ 6. Check npx tsc --noEmit passes with no errors

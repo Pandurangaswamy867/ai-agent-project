@@ -1,0 +1,12 @@
+transformers
+torch
+pillow
+sentencepiece
+protobuf
+pytest
+pypdfium2
+sentence-transformers
+librosa
+soundfile
+psycopg2-binary
+python-dotenv
