@@ -11,7 +11,7 @@ from pydantic import BaseModel
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI-Driven MSE Onboarding and Strategic Partner Mapping Ecosystem API")
-genai.configure(api_key="AIzaSyAxjLCvsHDpiB69t42oeSQW9zgFhu-bdno")
+genai.configure(api_key=os.getenv("GENAI_API_KEY"))
 model = genai.GenerativeModel("gemini-pro")
 
 class ChatRequest(BaseModel):
