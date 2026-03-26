@@ -9,3 +9,10 @@ python-jose
 cryptography
 python-dotenv
 passlib[bcrypt]
+transformers
+
+
+
+librosa
+soundfile
+numpy
