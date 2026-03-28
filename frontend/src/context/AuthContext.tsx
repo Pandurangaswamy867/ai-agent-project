@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import type { User, UserRole } from '../types';
+import config from '../config';
 
 interface AuthContextType {
     role: UserRole | null;
@@ -16,7 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [role, setRole] = useState<UserRole | null>(() => {
-        return localStorage.getItem('authRole') as UserRole || null;
+        return (localStorage.getItem('authRole') as UserRole) || null;
     });
 
     const [userId, setUserId] = useState<number | null>(() => {
@@ -33,13 +34,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const login = (newRole: UserRole, id?: number, token?: string, profId?: number) => {
         setRole(newRole);
+
         if (newRole) {
             localStorage.setItem('authRole', newRole);
         } else {
             localStorage.removeItem('authRole');
         }
 
-        if (id) {
+        if (id !== undefined) {
             setUserId(id);
             localStorage.setItem('authUserId', id.toString());
         } else {
@@ -47,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem('authUserId');
         }
 
-        if (profId) {
+        if (profId !== undefined) {
             setProfileId(profId);
             localStorage.setItem('authProfileId', profId.toString());
         }
@@ -57,9 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    // Helper to update profileId from components
     useEffect(() => {
-        if (profileId) {
+        if (profileId !== null) {
             localStorage.setItem('authProfileId', profileId.toString());
         } else {
             localStorage.removeItem('authProfileId');
@@ -92,19 +93,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             delete axios.defaults.headers.common['Authorization'];
             window.location.href = '/';
         };
+
         window.addEventListener('session-expired', handleSessionExpired);
         return () => window.removeEventListener('session-expired', handleSessionExpired);
     }, []);
 
-    // Sync profileId if we're logged in but don't have it
     useEffect(() => {
         const syncProfile = async () => {
             const token = localStorage.getItem('authToken');
             if (role && !profileId && token) {
                 try {
-                    // Try to get /me to find profile_id
-                    const config = { headers: { Authorization: `Bearer ${token}` } };
-                    const res = await axios.get('http://localhost:8000/api/v1/auth/me', config);
+                    const axiosConfig = {
+                        headers: { Authorization: `Bearer ${token}` }
+                    };
+                    const res = await axios.get(`${config.API_BASE_URL}/auth/me`, axiosConfig);
                     if (res.data.profile_id) {
                         setProfileId(res.data.profile_id);
                     }
@@ -113,11 +115,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
         };
+
         syncProfile();
     }, [role, profileId]);
 
     return (
-        <AuthContext.Provider value={{ role, userId, profileId, login, logout, isAuthenticated: !!role, user }}>
+        <AuthContext.Provider
+            value={{
+                role,
+                userId,
+                profileId,
+                login,
+                logout,
+                isAuthenticated: !!role,
+                user
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );
