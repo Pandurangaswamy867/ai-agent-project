@@ -3,20 +3,36 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 
+# Load environment variables (for local development)
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+# Read DATABASE_URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 
-engine_kwargs = {}
+# Engine configuration
+engine_kwargs = {
+    "pool_pre_ping": True,   # helps avoid stale DB connections
+    "pool_recycle": 280      # avoids MySQL timeout issues
+}
 
-if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+# Special handling for SQLite
+if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, **engine_kwargs)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create engine
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
+# Create session
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+# Base model
 Base = declarative_base()
 
+# Dependency for routes
 def get_db():
     db = SessionLocal()
     try:
