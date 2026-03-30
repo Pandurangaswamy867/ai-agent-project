@@ -33,15 +33,9 @@ phases:
       - echo "Creating uploads directory"
       - mkdir -p deploy_bundle/uploads
 
-      - echo "Copying optional Elastic Beanstalk config folders if present"
-      - |
-        if [ -d ".ebextensions" ]; then
-          cp -r .ebextensions deploy_bundle/.ebextensions
-        fi
-      - |
-        if [ -d ".platform" ]; then
-          cp -r .platform deploy_bundle/.platform
-        fi
+      - echo "Copying optional configs"
+      - if [ -d ".ebextensions" ]; then cp -r .ebextensions deploy_bundle/.ebextensions; fi
+      - if [ -d ".platform" ]; then cp -r .platform deploy_bundle/.platform; fi
 
   post_build:
     commands:
